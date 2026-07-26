@@ -1,0 +1,31 @@
+{
+  "pluginAlias": "SystemairVR700",
+  "pluginType": "platform",
+  "singular": true,
+  "headerDisplay": "Steuert eine Systemair/Villavent VR-700-Wohnraumlüftung über einen RS485↔WLAN-Adapter (z. B. Elfin EW11), der an den Bedienteil-Klemmen angeschlossen ist.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Lüftung",
+        "description": "Basisname; erzeugt \"<Name> Geschwindigkeit\" und \"<Name> Temperatur\"."
+      },
+      "ip": {
+        "title": "IP-Adresse des WLAN-Moduls",
+        "type": "string",
+        "required": true,
+        "format": "ipv4",
+        "description": "IP-Adresse des EW11 (RS485↔WLAN-Adapter)."
+      },
+      "port": {
+        "title": "TCP-Port",
+        "type": "integer",
+        "default": 502,
+        "description": "Meist 502. Muss im EW11 unter Communication Settings als TCP-Server-Port eingestellt sein."
+      }
+    },
+    "required": ["ip"]
+  }
+}
