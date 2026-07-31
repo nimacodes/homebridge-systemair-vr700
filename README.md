@@ -90,6 +90,55 @@ aufgebaut und das Kommando erneut gesendet, bevor endgültig ein Fehler geloggt 
 schnelles Ziehen eines Reglers in der Home-App (mehrere Befehle binnen Millisekunden) zu
 widersprüchlichen, sich gegenseitig überholenden Prüfungen führt.
 
+## Debug-Modus
+
+Für gezieltes Debugging (z. B. "warum kommt gerade nichts an") kann in der Config
+`"debug": true` gesetzt werden. Danach loggt das Plugin **jedes** empfangene und
+gesendete Byte im Klartext (Hex) sowie nach jedem Datenpaket eine Statistik, wann keine
+gültigen Frames darin gefunden wurden - das unterscheidet sauber zwei ganz verschiedene
+Störungsbilder:
+
+- **Gar keine Bytes kommen an** → elektrisches/Verkabelungsproblem, WLAN-Problem, oder der
+  EW11 selbst reagiert nicht.
+- **Bytes kommen an, aber 0 gültige Frames** → Datenmüll/Kollisionen auf dem Bus, oder ein
+  unbekannter Frame-Typ, der von unserem Parser (noch) nicht erkannt wird.
+
+```json
+{
+  "platform": "SystemairVR700",
+  "ip": "192.168.0.125",
+  "debug": true
+}
+```
+
+**Wichtig:** Debug-Modus erzeugt sehr viele Log-Zeilen - nach dem Debuggen wieder auf
+`false` stellen (oder das Feld entfernen).
+
+## Manuelle Debug-Frames
+
+Für Reverse-Engineering-Zwecke kann man in der Config unter `manualFrames` eigene
+Hex-Frames hinterlegen. Für jeden Eintrag legt das Plugin einen HomeKit-Schalter an, der
+beim Einschalten das Frame **einmalig und ungeprüft** sendet (kein `sendRepeat`, keine
+Wiederholung) und sich danach selbst wieder ausschaltet:
+
+```json
+{
+  "platform": "SystemairVR700",
+  "ip": "192.168.0.125",
+  "manualFrames": [
+    { "name": "Test A", "hex": "55aa...", "fixCrc": false },
+    { "name": "Test B (CRC automatisch)", "hex": "55aa...", "fixCrc": true }
+  ]
+}
+```
+
+> **Sicherheitshinweis:** Diese Funktion sendet exakt das eingegebene Frame ohne
+> inhaltliche Prüfung. Ein früherer Versuch, selbst zusammengesetzte Frames zu senden
+> (`commandForState`, siehe unten), hat auf der echten Anlage zu einem Einfrieren der
+> Panel-Bus-Kommunikation geführt. `manualFrames` bewusst nur eintragen, wenn du genau
+> weißt, was du testest, und idealerweise nicht auf einer Anlage, deren Neustart schwer
+> erreichbar ist.
+
 ## Sicherheitshinweis (wichtig!)
 
 `lib/protocol.js` enthält eine Funktion `commandForState(fanLevel, tempLevel)`, die versucht,
@@ -122,7 +171,17 @@ verstanden ist – nicht nur auf die paar Bytes, die dich gerade interessieren. 
   Datenverlust).
 - Der EW11 hat in Tests auf aktivierte TCP-Keepalive-Probes mit periodischen `ECONNRESET`
   reagiert – das Plugin nutzt deshalb bewusst **kein** TCP-Keepalive, sondern einen eigenen,
-  datenbasierten Watchdog (Neuverbindung, wenn 15 Sekunden lang keine Broadcasts ankommen).
+  datenbasierten Watchdog (Neuverbindung, wenn 15 Sekunden lang keine Broadcasts ankommen,
+  mit exponentiell wachsender Pause bei wiederholten erfolglosen Reconnects, gedeckelt auf
+  60s - verhindert, dass wiederholtes Auf-/Abbauen der Verbindung selbst zur Buslast wird).
+- **Beobachtet, noch nicht abschließend geklärt:** Wenn das Lüftungsgerät wegen Übertemperatur
+  einen Sensorfehler meldet (an sich normales Verhalten), verschwindet die Anzeige auf dem
+  physischen Wandpanel, sobald der EW11 am Bus angeschlossen ist - und der EW11 selbst scheint
+  dann auch keine Daten mehr zu empfangen. Trennt man den EW11 wieder ab, funktioniert das
+  Panel normal. Das deutet eher auf eine elektrische Wechselwirkung (Busbelastung/Terminierung
+  des EW11, evtl. verschärft durch reduzierte Störfestigkeit der Regelung im Fehlerzustand) als
+  auf einen reinen Software-Bug - der `debug`-Modus (siehe oben) hilft, das im Detail zu
+  beobachten (kommen überhaupt Bytes an, wenn ja wie viele gültige Frames).
 - Ungetestet: Verhalten über sehr lange Laufzeiten (Wochen/Monate) sowie Verhalten, wenn ein
   zweites physisches Bedienteil gleichzeitig aktiv bedient wird.
 
