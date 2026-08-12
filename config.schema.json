@@ -31,32 +31,11 @@
         "default": false,
         "description": "Loggt JEDES empfangene und gesendete Byte sowie Statistiken (gültige Frames vs. verworfene Bytes) ins Homebridge-Log. Nur zum gezielten Debuggen einschalten, erzeugt sehr viele Log-Zeilen - danach wieder deaktivieren."
       },
-      "manualFrames": {
-        "title": "Manuelle Debug-Frames",
-        "type": "array",
-        "description": "ACHTUNG: Erzeugt für jeden Eintrag einen HomeKit-Schalter, der beim Einschalten das angegebene Hex-Frame ungeprüft auf den Bus sendet. Nur für gezieltes, bewusstes Debugging - ein früherer Versuch, selbst zusammengesetzte Frames zu senden, hat die Anlage bereits einmal zum Einfrieren gebracht. Leer lassen, wenn nicht ausdrücklich benötigt.",
-        "items": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "title": "Bezeichnung",
-              "type": "string",
-              "description": "Erscheint als Zubehörname in Home, z.B. \"Test-Frame A\"."
-            },
-            "hex": {
-              "title": "Frame (Hex)",
-              "type": "string",
-              "description": "280-Byte-Frame als durchgehender Hex-String (560 Zeichen), z.B. aus einem Mitschnitt kopiert."
-            },
-            "fixCrc": {
-              "title": "Prüfsumme automatisch korrigieren",
-              "type": "boolean",
-              "default": false,
-              "description": "Wenn aktiv, wird das letzte Byte automatisch auf die korrekte CRC-8 gesetzt statt den eingegebenen Wert zu verwenden."
-            }
-          },
-          "required": ["hex"]
-        }
+      "learn": {
+        "title": "Lernmodus",
+        "type": "boolean",
+        "default": false,
+        "description": "Zeichnet die korrekten Steuer-Frames DEINER Anlage auf, statt die mitgelieferten Standard-Frames zu verwenden. Wenn aktiv, sendet das Plugin NICHTS an die Anlage, sondern hört nur mit: Schalte am originalen (parallel angeschlossenen) Wandpanel nacheinander alle Lüfter- und Temperaturstufen durch, das Plugin erfasst sie automatisch (Fortschritt im Log). Danach wieder auf false setzen. Die gelernten Frames werden dauerhaft gespeichert und im Normalbetrieb bevorzugt genutzt."
       }
     },
     "required": ["ip"]

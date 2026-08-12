@@ -1,8 +1,11 @@
 {
   "name": "homebridge-systemair-vr700",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Homebridge-Plugin fuer Systemair/Villavent VR-700 (CD-Panel-Protokoll) ueber einen RS485<->WLAN-Adapter (z.B. Elfin EW11)",
   "main": "index.js",
+  "scripts": {
+    "test": "node --test"
+  },
   "license": "MIT",
   "author": "",
   "homepage": "https://github.com/<dein-github-user>/homebridge-systemair-vr700#readme",
