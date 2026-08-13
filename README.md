@@ -215,6 +215,37 @@ updates.
 > to learn from. If the EW11 replaces a *missing* panel, there is no such source;
 > the plugin then says so clearly in the log and keeps using the default frames.
 
+### Standalone learning wizard (interactive)
+
+If you'd rather learn the frames outside Homebridge – with a live, guided prompt
+instead of reading the log – there's a small command-line wizard. It connects to
+the EW11, **listens only** (never sends anything), shows a live checklist while
+you operate the panel, and writes the same learned-frames file the plugin reads.
+
+Run it from the plugin directory:
+
+```bash
+node tools/learn.js --ip 192.168.0.125
+# or, if the plugin is installed globally, the bundled command:
+homebridge-systemair-vr700-learn --ip 192.168.0.125
+```
+
+Options: `--port` (default 502) and `--out <dir>` (where to write the file,
+default the current directory).
+
+It shows a live status line and ticks off each level as it captures it:
+
+```
+  [fan=normal temp=3]  panel cmds: 42  valid frames: 118  learned: fan 2/4, temp 1/6
+  ✓ captured fan level 2 ...
+```
+
+When finished (all levels captured, or press Ctrl‑C – progress is saved as you
+go) it prints the path to `systemair-vr700-learned-<ip>.json`. Copy that file
+into your Homebridge storage directory (the folder with `config.json`), make sure
+`"learn"` is `false`/absent, and restart Homebridge. Same requirement as above:
+the original wall panel must be connected in parallel on the bus.
+
 ## Safety note (important!)
 
 **Only exact, unmodified command frames** are ever sent – either the bundled
