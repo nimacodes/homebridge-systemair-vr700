@@ -56,10 +56,15 @@ jobs:
       id-token: write   # required: lets GitHub mint the OIDC token npm trusts
     steps:
       - uses: actions/checkout@v4
+      # NOTE: deliberately NO `registry-url` here. Setting it makes setup-node
+      # write an `_authToken=${NODE_AUTH_TOKEN}` line into .npmrc; with no token
+      # that empty value makes npm think auth is configured and it SKIPS the OIDC
+      # exchange, failing with E404. Without it, npm uses the default npmjs
+      # registry and OIDC trusted publishing engages.
+      # See actions/setup-node#1551 and npm/documentation#1960.
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org/
 
       # Guard: the release tag must match package.json's version, so we never
       # publish a mismatched or already-published version by accident.
