@@ -3,8 +3,12 @@
   "version": "0.5.5",
   "description": "Homebridge plugin for Systemair/Villavent VR-700 (CD panel protocol) over an RS485<->WiFi adapter (e.g. Elfin EW11)",
   "main": "index.js",
+  "bin": {
+    "homebridge-systemair-vr700-learn": "tools/learn.js"
+  },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "learn": "node tools/learn.js"
   },
   "license": "MIT",
   "author": "nimacodes",
@@ -35,6 +39,7 @@
   "files": [
     "index.js",
     "lib/",
+    "tools/",
     "config.schema.json"
   ]
 }
