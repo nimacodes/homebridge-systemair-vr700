@@ -71,9 +71,9 @@ jobs:
       - name: Verify release tag matches package.json version
         run: |
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${GITHUB_REF_NAME#[vV]}"   # tolerate a leading v OR V (or none)
           echo "package.json version: $PKG_VERSION"
-          echo "release tag (without leading v): $TAG"
+          echo "release tag (without leading v/V): $TAG"
           if [ "$PKG_VERSION" != "$TAG" ]; then
             echo "::error::Release tag '$GITHUB_REF_NAME' does not match package.json version '$PKG_VERSION'. Bump the version in package.json to match the release tag."
             exit 1
