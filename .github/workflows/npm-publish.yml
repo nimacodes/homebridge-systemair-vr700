@@ -1,14 +1,27 @@
-# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
-
-name: Node.js Package
+# Publishes the package to the public npm registry (npmjs.com) whenever a
+# GitHub Release is published. Steps: install -> test -> verify the release tag
+# matches the version in package.json -> npm publish.
+#
+# One-time setup required in the repo:
+#   Settings -> Secrets and variables -> Actions -> New repository secret
+#     Name:  NPM_TOKEN
+#     Value: an npm "Automation" access token (npmjs.com -> Access Tokens)
+#
+# Release flow:
+#   1. Bump "version" in package.json (and commit/merge to main).
+#   2. Create a GitHub Release whose tag is that version, e.g. v0.5.0 or 0.5.0.
+#   3. This workflow runs and publishes that version to npm.
+name: Publish to npm
 
 on:
   release:
-    types: [created]
+    types: [published]
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +32,7 @@ jobs:
       - run: npm test
 
   publish-npm:
-    needs: build
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +40,21 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
+
+      # Guard: the release tag must match package.json's version, so we never
+      # publish a mismatched or already-published version by accident.
+      - name: Verify release tag matches package.json version
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "package.json version: $PKG_VERSION"
+          echo "release tag (without leading v): $TAG"
+          if [ "$PKG_VERSION" != "$TAG" ]; then
+            echo "::error::Release tag '$GITHUB_REF_NAME' does not match package.json version '$PKG_VERSION'. Bump the version in package.json to match the release tag."
+            exit 1
+          fi
+
       - run: npm ci
       - run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
