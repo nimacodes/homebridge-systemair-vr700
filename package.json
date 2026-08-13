@@ -7,14 +7,17 @@
     "test": "node --test"
   },
   "license": "MIT",
-  "author": "",
-  "homepage": "https://github.com/<dein-github-user>/homebridge-systemair-vr700#readme",
+  "author": "nimacodes",
+  "homepage": "https://github.com/nimacodes/homebridge-systemair-vr700#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/<dein-github-user>/homebridge-systemair-vr700.git"
+    "url": "git+https://github.com/nimacodes/homebridge-systemair-vr700.git"
   },
   "bugs": {
-    "url": "https://github.com/<dein-github-user>/homebridge-systemair-vr700/issues"
+    "url": "https://github.com/nimacodes/homebridge-systemair-vr700/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "homebridge-plugin",
