@@ -1,13 +1,13 @@
 'use strict';
 
-// Leichtgewichtige Tests ohne externe Abhaengigkeiten (Node's eingebauter
-// Test-Runner). Ausfuehren mit:  npm test   (bzw.  node --test)
+// Lightweight tests without external dependencies (Node's built-in test runner).
+// Run with:  npm test   (i.e.  node --test)
 const { test } = require('node:test');
 const assert = require('node:assert');
 
 const proto = require('../lib/protocol');
 
-// Baut ein gueltiges Frame eines bestimmten Typs mit korrekter CRC.
+// Builds a valid frame of a given type with a correct CRC.
 function makeFrame(type, mutate) {
   const frame = Buffer.alloc(proto.FRAME_LEN);
   frame[0] = 0x55;
@@ -18,14 +18,14 @@ function makeFrame(type, mutate) {
   return frame;
 }
 
-test('crc8 ist deterministisch und byteweit', () => {
+test('crc8 is deterministic and byte-wide', () => {
   const a = proto.crc8(Buffer.from([0x55, 0xaa, 0x0a]));
   const b = proto.crc8(Buffer.from([0x55, 0xaa, 0x0a]));
   assert.strictEqual(a, b);
   assert.ok(a >= 0 && a <= 255);
 });
 
-test('verifyFrame akzeptiert nur korrekte Laenge, Header und CRC', () => {
+test('verifyFrame accepts only correct length, header and CRC', () => {
   const good = makeFrame(proto.FRAME_TYPE.BROADCAST);
   assert.strictEqual(proto.verifyFrame(good), true);
 
@@ -41,7 +41,7 @@ test('verifyFrame akzeptiert nur korrekte Laenge, Header und CRC', () => {
   assert.strictEqual(proto.verifyFrame(badLen), false);
 });
 
-test('parseState liest Luefter-/Temperaturstufe nur aus 0x0a-Frames', () => {
+test('parseState reads fan/temperature level only from 0x0a frames', () => {
   const bc = makeFrame(proto.FRAME_TYPE.BROADCAST, (f) => { f[42] = 3; f[95] = 5; });
   assert.deepStrictEqual(proto.parseState(bc), { fanSpeed: 3, tempLevel: 5 });
 
@@ -49,14 +49,14 @@ test('parseState liest Luefter-/Temperaturstufe nur aus 0x0a-Frames', () => {
   assert.strictEqual(proto.parseState(cmd), null);
 });
 
-test('isCommandFrame / isBroadcastFrame unterscheiden die Typen', () => {
+test('isCommandFrame / isBroadcastFrame distinguish the types', () => {
   assert.strictEqual(proto.isCommandFrame(makeFrame(proto.FRAME_TYPE.COMMAND)), true);
   assert.strictEqual(proto.isCommandFrame(makeFrame(proto.FRAME_TYPE.BROADCAST)), false);
   assert.strictEqual(proto.isBroadcastFrame(makeFrame(proto.FRAME_TYPE.BROADCAST)), true);
   assert.strictEqual(proto.isBroadcastFrame(makeFrame(proto.FRAME_TYPE.COMMAND)), false);
 });
 
-test('splitFrames extrahiert vollstaendige Frames und behaelt den Rest', () => {
+test('splitFrames extracts complete frames and keeps the rest', () => {
   const f1 = makeFrame(proto.FRAME_TYPE.BROADCAST, (f) => { f[42] = 1; });
   const f2 = makeFrame(proto.FRAME_TYPE.COMMAND);
   const partial = f1.subarray(0, 10);
@@ -69,13 +69,13 @@ test('splitFrames extrahiert vollstaendige Frames und behaelt den Rest', () => {
   assert.strictEqual(proto.parseState(frames[0]).fanSpeed, 1);
 });
 
-test('splitFrames erkennt sich nach einem falschen 55AA-Header wieder', () => {
-  // Muell mit einem falschen 55AA-Header (ohne gueltige CRC ueber 280 Byte)
-  // VOR einem echten Frame. Ein naiver Parser wuerde hier verrutschen; unserer
-  // prueft an jeder Header-Position die CRC, verwirft den Fehltreffer (zaehlt
-  // ihn als skipped) und findet das echte Frame trotzdem.
+test('splitFrames recovers after a false 55AA header', () => {
+  // Garbage containing a false 55AA header (no valid CRC over 280 bytes) BEFORE
+  // a real frame. A naive parser would slip here; ours checks the CRC at every
+  // header position, discards the false hit (counting it as skipped) and still
+  // finds the real frame.
   const noise = Buffer.alloc(300, 0x00);
-  noise[0] = 0x55; noise[1] = 0xaa; // falscher Header
+  noise[0] = 0x55; noise[1] = 0xaa; // false header
   const real = makeFrame(proto.FRAME_TYPE.BROADCAST, (frame) => { frame[42] = 2; });
   const stream = Buffer.concat([noise, real]);
 
@@ -85,33 +85,33 @@ test('splitFrames erkennt sich nach einem falschen 55AA-Header wieder', () => {
   assert.ok(skipped >= 1);
 });
 
-test('mitgelieferte Standard-Kommandoframes sind gueltige 0x01-Frames', () => {
+test('bundled default command frames are valid 0x01 frames', () => {
   for (const level of [0, 1, 2, 3]) {
     const frame = proto.commandForFanSpeed(level);
     assert.strictEqual(frame.length, proto.FRAME_LEN);
-    assert.strictEqual(proto.isCommandFrame(frame), true, `Luefterstufe ${level}`);
+    assert.strictEqual(proto.isCommandFrame(frame), true, `fan level ${level}`);
   }
   for (const level of [0, 1, 2, 3, 4, 5]) {
     const frame = proto.commandForTempLevel(level);
     assert.strictEqual(frame.length, proto.FRAME_LEN);
-    assert.strictEqual(proto.isCommandFrame(frame), true, `Temperaturstufe ${level}`);
+    assert.strictEqual(proto.isCommandFrame(frame), true, `temperature level ${level}`);
   }
 });
 
-test('commandForState wurde entfernt (Sicherheits-Footgun)', () => {
+test('commandForState was removed (safety footgun)', () => {
   assert.strictEqual(proto.commandForState, undefined);
 });
 
-test('frameFromHex erzwingt Laenge und kann die CRC korrigieren', () => {
+test('frameFromHex enforces length and can fix the CRC', () => {
   const good = makeFrame(proto.FRAME_TYPE.COMMAND);
   const hex = good.toString('hex');
   const parsed = proto.frameFromHex(hex);
   assert.ok(parsed.equals(good));
 
-  // Falsche CRC + fixCrc -> wird korrigiert und gilt anschliessend.
+  // Wrong CRC + fixCrc -> gets corrected and is then valid.
   const brokenHex = hex.slice(0, -2) + '00';
   const fixed = proto.frameFromHex(brokenHex, { fixCrc: true });
   assert.strictEqual(proto.verifyFrame(fixed), true);
 
-  assert.throws(() => proto.frameFromHex('55aa01'), /Byte/);
+  assert.throws(() => proto.frameFromHex('55aa01'), /bytes/);
 });

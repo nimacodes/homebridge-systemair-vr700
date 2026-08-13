@@ -23,12 +23,12 @@ const command = (fan, temp) => frame(proto.FRAME_TYPE.COMMAND, (f) => { f[42] = 
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Startet einen loopback-Server, der jede Client-Verbindung an den Test
-// weiterreicht. Der Test steuert, welche Frames "die Regelung" sendet, und
-// zaehlt, welche Kommandoframes der Client (das Plugin) zurueckschreibt.
+// Starts a loopback server that hands each client connection to the test. The
+// test controls which frames "the controller" sends, and counts which command
+// frames the client (the plugin) writes back.
 function withServer(fn) {
   return new Promise((resolve, reject) => {
-    const received = []; // vom Client geschriebene 280-Byte-Frames
+    const received = []; // 280-byte frames written by the client
     let sock = null;
     const server = net.createServer((s) => {
       sock = s;
@@ -45,7 +45,7 @@ function withServer(fn) {
       const port = server.address().port;
       const conn = new SystemairConnection({
         host: '127.0.0.1', port, log: silentLog,
-        minSendIntervalMs: 0, // Timing-Gate im Test ausschalten
+        minSendIntervalMs: 0, // disable the timing gate in the test
       });
       try {
         await new Promise((r) => conn.once('connected', r));
@@ -61,45 +61,45 @@ function withServer(fn) {
   });
 }
 
-test('sendet ein Kommando erst nach einem 0x02-Poll', async () => {
+test('sends a command only after a 0x02 poll', async () => {
   await withServer(async ({ conn, received, send }) => {
     conn.sendCommand(command(2, 3), (st) => st.fanSpeed === 2);
     await delay(50);
-    assert.strictEqual(received.length, 0, 'ohne Poll darf nichts gesendet werden');
+    assert.strictEqual(received.length, 0, 'nothing may be sent without a poll');
     send(poll());
     await delay(50);
-    assert.strictEqual(received.length, 1, 'nach dem Poll genau ein Frame');
+    assert.strictEqual(received.length, 1, 'exactly one frame after the poll');
   });
 });
 
-test('Closed-Loop: hoert auf zu senden, sobald der Broadcast das Ziel bestaetigt', async () => {
+test('closed loop: stops sending once the broadcast confirms the target', async () => {
   await withServer(async ({ conn, received, send }) => {
     conn.sendCommand(command(2, 3), (st) => st.fanSpeed === 2);
     send(poll());
     await delay(30);
     assert.strictEqual(received.length, 1);
 
-    // Regelung bestaetigt den Zielwert -> weiterer Poll darf NICHT mehr senden.
+    // Controller confirms the target value -> another poll must NOT send again.
     send(broadcast(2, 3));
     await delay(30);
     send(poll());
     await delay(30);
-    assert.strictEqual(received.length, 1, 'nach Bestaetigung keine Wiederholung mehr');
+    assert.strictEqual(received.length, 1, 'no repeat after confirmation');
   });
 });
 
-test('ohne Bestaetigung wird bis sendRepeat wiederholt, dann Schluss', async () => {
+test('without confirmation it repeats up to sendRepeat, then stops', async () => {
   await withServer(async ({ conn, received, send }) => {
     conn.sendCommand(command(2, 3), (st) => st.fanSpeed === 2);
-    // Viele Polls, aber der Broadcast bleibt beim alten Wert (1) -> nie
-    // bestaetigt. Erwartung: hoechstens sendRepeat (Default 3) Sendungen.
+    // Many polls, but the broadcast stays at the old value (1) -> never
+    // confirmed. Expectation: at most sendRepeat (default 3) sends.
     for (let i = 0; i < 8; i++) { send(poll()); await delay(15); send(broadcast(1, 3)); await delay(15); }
-    assert.ok(received.length <= 3, `hoechstens 3 Wiederholungen, waren ${received.length}`);
+    assert.ok(received.length <= 3, `at most 3 repeats, were ${received.length}`);
     assert.ok(received.length >= 1);
   });
 });
 
-test('emittiert "command" fuer beobachtete 0x01-Frames (Basis des Lernmodus)', async () => {
+test('emits "command" for observed 0x01 frames (basis of learn mode)', async () => {
   await withServer(async ({ conn, send }) => {
     const seen = [];
     conn.on('command', (f) => seen.push(f));
@@ -110,15 +110,15 @@ test('emittiert "command" fuer beobachtete 0x01-Frames (Basis des Lernmodus)', a
   });
 });
 
-test('emittiert "state" nur bei tatsaechlicher Aenderung', async () => {
+test('emits "state" only on an actual change', async () => {
   await withServer(async ({ conn, send }) => {
     const states = [];
     conn.on('state', (st) => states.push(st));
     send(broadcast(1, 2));
     await delay(30);
-    send(broadcast(1, 2)); // gleich -> kein Event
+    send(broadcast(1, 2)); // same -> no event
     await delay(30);
-    send(broadcast(2, 2)); // geaendert -> Event
+    send(broadcast(2, 2)); // changed -> event
     await delay(30);
     assert.strictEqual(states.length, 2);
     assert.deepStrictEqual(states[1], { fanSpeed: 2, tempLevel: 2 });

@@ -1,66 +1,73 @@
 # homebridge-systemair-vr700
 
-Homebridge-Plugin für eine Systemair/Villavent **VR-700** (DCV-Reihe) Wohnraumlüftung,
-gesteuert über das reverse-engineerte CD-Panel-Protokoll – **kein Modbus**.
+Homebridge plugin for a Systemair/Villavent **VR-700** (DCV series) residential
+ventilation unit, controlled via the reverse-engineered CD panel protocol –
+**not Modbus**.
 
-Angebunden wird ein RS485↔WLAN-Adapter (z. B. **Elfin EW11/EW11A**), der direkt an den
-Bedienteil-Klemmen (12V / GND / Hi / Lo) der Lüftungs-Wanddose angeschlossen ist – er
-ersetzt faktisch ein defektes oder fehlendes Wandbedienteil.
+It connects through an RS485↔WiFi adapter (e.g. **Elfin EW11/EW11A**) wired
+directly to the wall-panel terminals (12V / GND / Hi / Lo) of the ventilation
+wall box – effectively replacing a defective or missing wall controller.
 
-> **Status:** funktioniert im Alltag zuverlässig für Lüftergeschwindigkeit (4 Stufen) und
-> Temperaturstufe (6 Stufen), jeweils einzeln bedient. Siehe [Sicherheitshinweis](#sicherheitshinweis-wichtig)
-> unten, bevor du am Protokoll-Code herumbastelst.
+> **Status:** works reliably in day-to-day use for fan speed (4 levels) and
+> temperature level (6 levels), each operated individually. See the
+> [safety note](#safety-note-important) below before you tinker with the
+> protocol code.
 >
-> **Neu ab 0.5.0:** ein [Lernmodus](#lernmodus-empfohlen), der die korrekten Steuer-Frames
-> direkt von deiner eigenen Anlage aufzeichnet (statt die mitgelieferten Frames zu verwenden),
-> deutlich reduzierte Buslast durch geschlossenen Regelkreis, eine automatische
-> Bus-Stau-Erkennung mit Beruhigungsphase – und der bewusst entfernte manuelle Frame-Versand.
+> **Since 0.5.0:** a [learn mode](#learn-mode-recommended) that records the
+> correct control frames directly from your own unit (instead of using the
+> bundled frames), much lower bus load via a closed control loop, automatic
+> bus-jam detection with a recovery pause – and the deliberately removed manual
+> frame injection.
 
-## Voraussetzungen: EW11-Konfiguration
+## Prerequisite: EW11 configuration
 
-Im Webinterface des EW11 (Standard-IP `10.10.100.254` im Auslieferungszustand):
+In the EW11 web interface (default IP `10.10.100.254` as shipped):
 
-- **Serial Port Settings**: Baud Rate `57600`, Data Bit `8`, Stop Bit `1`, Parity `None`,
-  **Protocol: `None`** (transparent – **nicht** „Modbus", das Gerät spricht kein Modbus)
-- **Communication Settings**: Protocol `TCP Server`, Local Port `502`, Route `Uart`
-- WLAN im STA-Modus mit deinem Heimnetz verbinden
-- **Feste IP dringend empfohlen** (DHCP-Reservierung im Router) – eine wandernde IP ist die
-  häufigste Ursache für „Plugin verbindet sich nicht mehr"
+- **Serial Port Settings**: Baud Rate `57600`, Data Bit `8`, Stop Bit `1`,
+  Parity `None`, **Protocol: `None`** (transparent – **not** "Modbus", the unit
+  does not speak Modbus on this bus)
+- **Communication Settings**: Protocol `TCP Server`, Local Port `502`, Route
+  `Uart`
+- Connect WiFi in STA mode to your home network
+- **A static IP is strongly recommended** (DHCP reservation in the router) – a
+  wandering IP is the most common cause of "the plugin no longer connects"
 
 ## Installation
 
-Über npm (sobald veröffentlicht):
+Via npm:
 
 ```bash
 npm install -g homebridge-systemair-vr700
 ```
 
-Oder lokal aus dem Quellcode, z. B. auf einem Raspberry-Pi-Setup mit dem offiziellen
-Homebridge-Image (`hb-service`):
+Or locally from source, e.g. on a Raspberry Pi setup with the official
+Homebridge image (`hb-service`):
 
 ```bash
-git clone https://github.com/<dein-github-user>/homebridge-systemair-vr700.git
+git clone https://github.com/nimacodes/homebridge-systemair-vr700.git
 sudo cp -r homebridge-systemair-vr700 /var/lib/homebridge/node_modules/homebridge-systemair-vr700
 sudo chown -R homebridge:homebridge /var/lib/homebridge/node_modules/homebridge-systemair-vr700
 sudo systemctl restart homebridge
 ```
 
-> **Hinweis für hb-service-Installationen:** Installiere **nicht** per `npm install <lokaler-pfad>`
-> aus einem Verzeichnis wie `/home/<user>/...` oder `/tmp/...` – das legt oft nur einen
-> **Symlink** an. Zeigt der Symlink auf `/tmp/...`, verschwindet das Plugin beim nächsten
-> Neustart (Linux leert `/tmp` bei jedem Reboot). Kopiere den Ordner stattdessen wie oben
-> direkt und vollständig nach `/var/lib/homebridge/node_modules/`.
+> **Note for hb-service installations:** do **not** install via
+> `npm install <local-path>` from a directory like `/home/<user>/...` or
+> `/tmp/...` – that often only creates a **symlink**. If the symlink points to
+> `/tmp/...`, the plugin disappears on the next reboot (Linux clears `/tmp` on
+> every reboot). Copy the folder directly and completely into
+> `/var/lib/homebridge/node_modules/` as shown above instead.
 
-## Konfiguration
+## Configuration
 
-In der Homebridge `config.json` (oder über Config UI X, `config.schema.json` liegt bei):
+In the Homebridge `config.json` (or via Config UI X, `config.schema.json` is
+included):
 
 ```json
 {
   "platforms": [
     {
       "platform": "SystemairVR700",
-      "name": "Lüftung",
+      "name": "Ventilation",
       "ip": "192.168.0.125",
       "port": 502
     }
@@ -68,74 +75,80 @@ In der Homebridge `config.json` (oder über Config UI X, `config.schema.json` li
 }
 ```
 
-Das Plugin legt automatisch zwei Zubehörteile an:
+The plugin automatically creates two accessories:
 
-- **„\<Name> Geschwindigkeit"** – Fan-Zubehör, Drehzahl in 4 Stufen (Aus/Niedrig/Normal/Hoch,
+- **"\<Name> Speed"** – fan accessory, speed in 4 levels (off/low/normal/high,
   0/33/66/100 %)
-- **„\<Name> Temperatur"** – Lightbulb-Zubehör (Helligkeits-Slider), bildet die 6-stufige
-  Temperatureinstellung ab (0–100 % in 20-%-Schritten)
+- **"\<Name> Temperature"** – lightbulb accessory (brightness slider), maps the
+  6-level temperature setting (0–100 % in 20 % steps)
 
-Ein Lightbulb wurde für die Temperaturstufe gewählt, weil HomeKit keinen generischen
-6-stufigen Regler ohne Einheit kennt und ein Slider im Home-App-UI am nächsten an der
-physischen Bedienung liegt.
+A lightbulb was chosen for the temperature level because HomeKit has no generic
+6-step control without a unit, and a slider in the Home app UI is the closest
+match to the physical dial.
 
-Optional lässt sich der [Lernmodus](#lernmodus-empfohlen) mit `"learn": true` aktivieren –
-dringend empfohlen, wenn Setzen bei dir nicht zuverlässig funktioniert (siehe unten).
+Optionally, [learn mode](#learn-mode-recommended) can be enabled with
+`"learn": true` – strongly recommended if setting values isn't reliable for you
+(see below).
 
-## Funktionsweise (kurz)
+## How it works (in brief)
 
-Das Panel-Protokoll verwendet 280-Byte-Frames mit Header `55 AA` und einer CRC-8-Prüfsumme
-(Polynom `0x8D`, kein Init, keine Reflektion). Die Regelung sendet periodisch
-Zustands-Broadcasts (Frame-Typ `0x0a`); ein Panel-Kommando (Frame-Typ `0x01`) wird direkt im
-Anschluss an ein `0x02`-Frame der Regelung gesendet (der „Sende-Slot" des Panels). Das Plugin
-liest die Broadcasts zur Zustandsanzeige und sendet beim Setzen eines Werts ein gültiges,
-**exakt aufgezeichnetes** Kommandoframe für die Zielstufe – bevorzugt eines, das per Lernmodus
-von der eigenen Anlage stammt, sonst die mitgelieferte Vorlage (`lib/protocol.js`).
+The panel protocol uses 280-byte frames with header `55 AA` and a CRC-8 checksum
+(polynomial `0x8D`, no init, no reflection). The controller periodically sends
+state broadcasts (frame type `0x0a`); a panel command (frame type `0x01`) is
+sent right after a `0x02` frame from the controller (the panel's "send slot").
+The plugin reads the broadcasts for status display and, when setting a value,
+sends a valid, **exactly recorded** command frame for the target level –
+preferring one recorded from your own unit via learn mode, otherwise the bundled
+template (`lib/protocol.js`).
 
-**Geschlossener Regelkreis statt blindem Wiederholen (Buslast!):** Ein Kommando wird immer nur
-im Slot nach einem `0x02` gesendet und **sofort gestoppt, sobald der nächste Broadcast den
-Zielwert bestätigt**. Im Normalfall genügt so ein einziger Schreibvorgang statt der früheren
-sechs. Zusätzlich greifen mehrere harte Bremsen (`lib/connection.js`):
+**Closed loop instead of blind repeating (bus load!):** a command is only sent
+in the slot after a `0x02` and is **stopped immediately as soon as the next
+broadcast confirms the target value**. In the normal case a single write
+suffices instead of the former six. Several hard brakes also apply
+(`lib/connection.js`):
 
-- **Mindestabstand** zwischen zwei Schreibvorgängen (500 ms),
-- **Wiederhol-Deckel** pro Auftrag (max. 3 Versuche),
-- **Minuten-Budget** als absolute Obergrenze (max. 40 Schreibvorgänge/Minute, egal was sonst
-  passiert – ein Sicherheitsnetz gegen jeden denkbaren Bug),
-- **Bus-Stau-Erkennung** (siehe unten).
+- **Minimum interval** between two writes (500 ms),
+- **Repeat cap** per command (max. 3 attempts),
+- **Per-minute budget** as an absolute ceiling (max. 40 writes/minute, no matter
+  what else happens – a safety net against any conceivable bug),
+- **Bus-jam detection** (see below).
 
-Nach dem Senden prüft das Plugin nach 5 Sekunden zusätzlich, ob der gemeldete Ist-Wert dem
-Soll-Wert entspricht. Bei Abweichung wird **einmal** automatisch die Verbindung neu aufgebaut
-und das Kommando erneut gesendet, bevor endgültig ein Fehler geloggt wird (`_verifyLater`). Ein
-Generationszähler pro Regler verhindert dabei, dass schnelles Ziehen eines Reglers in der
-Home-App zu widersprüchlichen, sich gegenseitig überholenden Prüfungen führt.
+After sending, the plugin additionally checks after 5 seconds whether the
+reported value matches the target. If it doesn't, it simply **resends the exact
+frame once more** (no reconnect, no disconnect – the closed-loop send already
+retried within its window, so there is nothing a reconnect would fix) and then
+stops quietly; the unit's next state broadcast keeps HomeKit in sync. A
+generation counter per control prevents fast slider dragging in the Home app
+from producing conflicting, mutually overtaking checks.
 
-### Bus-Stau-Erkennung (gegen das „Einfrieren")
+### Bus-jam detection (against the "freeze")
 
-Beobachtet wurde, dass die Anlage die Kommunikation manchmal blockiert – es kommt nur noch
-Datenmüll, und erst ein **Stromreset des EW11** hilft. Dagegen zwei Automatiken im Watchdog:
+It has been observed that the unit sometimes blocks communication – only garbage
+arrives, and only a **power-cycle of the EW11** helps. Two automatics in the
+watchdog counter this:
 
-- **Link tot** (gar keine Bytes mehr für 15 s): erzwungene Neuverbindung mit exponentiell
-  wachsender Pause (gedeckelt auf 60 s), damit wiederholtes Auf-/Abbauen nicht selbst zur
-  Buslast wird.
-- **Bus-Stau** (es kommen zwar Bytes, aber über ~12 s **kein einziges gültiges Frame**):
-  typisch für Kollisionen/Müll auf dem Halbduplex-Bus. Das Plugin **stoppt dann für ~30 s
-  jegliches Senden** (Quiet-Mode) und baut die Verbindung einmal neu auf, damit sich der Bus
-  beruhigen kann – statt weiter dagegen zu schreiben. Das ist das Software-Äquivalent zum
-  „kurz die Finger vom Bus nehmen". Hilft das dauerhaft nicht, bleibt nur der physische
-  EW11-Stromreset.
+- **Link dead** (no bytes at all for 15 s): forced reconnect with an
+  exponentially growing pause (capped at 60 s), so that repeated
+  connecting/disconnecting doesn't itself become bus load.
+- **Bus jam** (bytes do arrive, but **not a single valid frame** for ~12 s):
+  typical for collisions/garbage on the half-duplex bus. The plugin then **stops
+  all sending for ~30 s** (quiet mode) and reconnects once so the bus can settle
+  – instead of writing against it. This is the software equivalent of "briefly
+  taking your hands off the bus". If it doesn't help long-term, only the physical
+  EW11 power-cycle remains.
 
-## Debug-Modus
+## Debug mode
 
-Für gezieltes Debugging (z. B. "warum kommt gerade nichts an") kann in der Config
-`"debug": true` gesetzt werden. Danach loggt das Plugin **jedes** empfangene und
-gesendete Byte im Klartext (Hex) sowie nach jedem Datenpaket eine Statistik, wann keine
-gültigen Frames darin gefunden wurden - das unterscheidet sauber zwei ganz verschiedene
-Störungsbilder:
+For targeted debugging (e.g. "why is nothing coming through right now") you can
+set `"debug": true` in the config. The plugin then logs **every** received and
+sent byte in plain hex, plus a statistic after each data chunk noting when no
+valid frames were found in it - this cleanly distinguishes two very different
+failure modes:
 
-- **Gar keine Bytes kommen an** → elektrisches/Verkabelungsproblem, WLAN-Problem, oder der
-  EW11 selbst reagiert nicht.
-- **Bytes kommen an, aber 0 gültige Frames** → Datenmüll/Kollisionen auf dem Bus, oder ein
-  unbekannter Frame-Typ, der von unserem Parser (noch) nicht erkannt wird.
+- **No bytes arrive at all** → electrical/cabling problem, WiFi problem, or the
+  EW11 itself isn't responding.
+- **Bytes arrive, but 0 valid frames** → garbage/collisions on the bus, or an
+  unknown frame type our parser doesn't (yet) recognize.
 
 ```json
 {
@@ -145,31 +158,31 @@ Störungsbilder:
 }
 ```
 
-**Wichtig:** Debug-Modus erzeugt sehr viele Log-Zeilen - nach dem Debuggen wieder auf
-`false` stellen (oder das Feld entfernen).
+**Important:** debug mode produces a lot of log lines - set it back to `false`
+(or remove the field) after debugging.
 
-## Lernmodus (empfohlen)
+## Learn mode (recommended)
 
-**Zur Einordnung:** Die mitgelieferten Kommandoframes sind **echte, per Reverse Engineering
-aufgezeichnete** Frames – das Nächste an der echten Panel-Kommunikation, was es gibt, und die
-vertrauenswürdige Standard-Basis dieses Plugins. Sie bleiben der Default; der Lernmodus ist
-**optional** und ändert daran nichts, solange du ihn nicht ausführst.
+**For context:** the bundled command frames are **real frames recorded via
+reverse engineering** – the closest thing to the actual panel communication
+there is, and the trusted default basis of this plugin. They remain the default;
+learn mode is **optional** and changes nothing unless you run it.
 
-Trotzdem ist so ein Frame ein kompletter 280-Byte-Schnappschuss, von dem nur wenige Bytes
-entschlüsselt sind. Dadurch kann das Setzen in Einzelfällen nicht sofort greifen – etwa weil
-ein Frame immer *beide* Werte (Lüfter und Temperatur) mitführt und sich zwei kurz
-aufeinanderfolgende Befehle gegenseitig überschreiben, oder weil eingebettete Zähler-/
-Zeitstempel-Bytes im Schnappschuss veraltet sind. Der Lernmodus hilft hier, indem er **frische
-Frames direkt von deiner laufenden Anlage** aufzeichnet – nützlich, um die Vorlagen
-aufzufrischen, fehlende Stufen zu ergänzen oder ein anderes/neues Gerät einzumessen. Er ist
-kein „Ersatz für falsche" Frames, sondern eine Möglichkeit, den Bestand aus derselben realen
-Quelle aktuell zu halten.
+Still, such a frame is a complete 280-byte snapshot of which only a few bytes are
+decoded. Because of this, setting a value can occasionally fail to take
+immediately – e.g. because a frame always carries *both* values (fan and
+temperature) and two quickly successive commands overwrite each other, or
+because embedded counter/timestamp bytes in the snapshot are stale. Learn mode
+helps here by recording **fresh frames directly from your running unit** – useful
+to refresh the templates, fill in missing levels, or measure a different/new
+device. It's not a "replacement for wrong" frames, but a way to keep the set
+current from the same real source.
 
-**So funktioniert's:** Mit `"learn": true` geht das Plugin in einen **rein passiven**
-Mitschnitt-Modus. Es **sendet dabei nichts** an die Anlage (für den Bus also völlig
-ungefährlich), sondern hört nur mit: Du schaltest am **originalen Wandpanel** nacheinander
-alle Stufen durch, das Plugin ordnet jeden stabilen Zustand dem zugehörigen echten
-Panel-Kommandoframe zu und speichert dieses als exakte, unveränderte Vorlage.
+**How it works:** with `"learn": true` the plugin enters a **purely passive**
+capture mode. It **sends nothing** to the unit (so it's completely harmless to
+the bus) and only listens: you step through all levels on the **original wall
+panel**, one by one, and the plugin maps each stable state to the corresponding
+real panel command frame and stores it as an exact, unmodified template.
 
 ```json
 {
@@ -179,89 +192,92 @@ Panel-Kommandoframe zu und speichert dieses als exakte, unveränderte Vorlage.
 }
 ```
 
-Ablauf:
+Procedure:
 
-1. `"learn": true` setzen, Homebridge neu starten. Im Log erscheint ein Lern-Banner.
-2. Am **originalen Wandpanel** nacheinander durchschalten:
-   - Lüfter: **Aus → Niedrig → Normal → Hoch**
-   - Temperatur: **alle 6 Stufen**
-   - auf jeder Stufe ~5 Sekunden stehen bleiben.
-3. Das Log zeigt nach jeder erfassten Stufe den Fortschritt (`Lüfter 3/4, Temperatur 5/6`) und
-   welche Stufen noch fehlen. Sind alle erfasst, meldet es das ausdrücklich.
-4. `"learn": false` setzen (oder das Feld entfernen), Homebridge neu starten. Ab jetzt nutzt
-   das Plugin **bevorzugt** die gelernten Frames deiner Anlage; für noch nicht gelernte Stufen
-   fällt es auf die mitgelieferten Vorlagen zurück.
+1. Set `"learn": true`, restart Homebridge. A learn banner appears in the log.
+2. Step through, one by one, on the **original wall panel**:
+   - Fan: **off → low → normal → high**
+   - Temperature: **all 6 levels**
+   - stay on each level for ~5 seconds.
+3. After each captured level the log shows progress (`fan 3/4, temperature 5/6`)
+   and which levels are still missing. Once all are captured it says so
+   explicitly.
+4. Set `"learn": false` (or remove the field), restart Homebridge. From now on
+   the plugin **prefers** the learned frames of your unit; for levels not yet
+   learned it falls back to the bundled templates.
 
-Die gelernten Frames werden pro Anlage (nach IP) dauerhaft im Homebridge-Storage abgelegt
-(`systemair-vr700-learned-<ip>.json`) und überstehen Neustarts und Plugin-Updates.
+The learned frames are stored per unit (by IP) persistently in the Homebridge
+storage (`systemair-vr700-learned-<ip>.json`) and survive restarts and plugin
+updates.
 
-> **Voraussetzung:** Lernen braucht ein **originales Wandpanel, das parallel am Bus
-> angeschlossen bleibt** – nur dieses erzeugt die Kommandoframes (Typ `0x01`), aus denen
-> gelernt wird. Ersetzt der EW11 ein *fehlendes* Panel, gibt es keine solche Quelle; das
-> Plugin sagt das dann klar im Log und nutzt weiter die Standard-Frames.
+> **Requirement:** learning needs an **original wall panel that stays connected
+> in parallel on the bus** – only that produces the command frames (type `0x01`)
+> to learn from. If the EW11 replaces a *missing* panel, there is no such source;
+> the plugin then says so clearly in the log and keeps using the default frames.
 
-## Sicherheitshinweis (wichtig!)
+## Safety note (important!)
 
-Es werden **ausschließlich exakte, unveränderte Kommandoframes** gesendet – entweder die
-mitgelieferten Vorlagen oder die per Lernmodus aufgezeichneten. Es wird **nie ein dynamisch
-zusammengesetztes Frame** erzeugt.
+**Only exact, unmodified command frames** are ever sent – either the bundled
+templates or the ones recorded via learn mode. A **dynamically assembled frame**
+is **never** produced.
 
-Frühere Versionen enthielten eine Funktion `commandForState(fanLevel, tempLevel)`, die ein
-Frame aus einem Temperatur-Template mit überschriebenen Lüfter-Bytes zusammensetzte
-(„Frankenstein"-Frame). Ihr Einsatz hat auf der echten Anlage die **Regelung zum
-Einfrieren/Reset** gebracht – ein Stromreset war nötig. Diese Funktion und der frühere manuelle
-Frame-Versand (`manualFrames`) wurden **vollständig entfernt**, um diesen Footgun gar nicht
-erst zugänglich zu machen.
+Earlier versions contained a function `commandForState(fanLevel, tempLevel)` that
+assembled a frame from a temperature template with overwritten fan bytes (a
+"Frankenstein" frame). Using it brought the real unit's **controller to a
+freeze/reset** – a power-cycle was required. That function and the earlier manual
+frame injection (`manualFrames`) were **removed entirely** so the footgun isn't
+even reachable.
 
-**Wenn du das Protokoll erweiterst:** Sende ausschließlich Frames, die entweder unverändert
-aus einem echten Mitschnitt stammen (siehe Lernmodus), oder deren Auswirkung auf alle 280 Byte
-vollständig verstanden ist – nicht nur auf die paar Bytes, die dich gerade interessieren.
-Ändere **niemals einzelne Bytes** eines Frames, solange nicht alle 280 verstanden sind.
+**If you extend the protocol:** send only frames that are either unchanged from a
+real capture (see learn mode) or whose effect on all 280 bytes is fully
+understood – not just the few bytes you currently care about. **Never change
+individual bytes** of a frame while all 280 are not understood.
 
 ## Alternative: Modbus
 
-Die VR-700 DCV kann auf einem separaten Anschluss auch **Modbus RTU** (RS-485) sprechen –
-darauf setzen die meisten anderen Integrationen auf (z. B.
-[BeamCtrl/Airiana](https://github.com/BeamCtrl/Airiana), diverse Home-Assistant-Projekte). Das
-ist deutlich robuster als das Nachspielen von Panel-Frames, **erfordert aber die
-Modbus-Klemmen**, nicht die Bedienteil-Klemmen. Dieses Plugin geht bewusst den
-Panel-Protokoll-Weg (es hängt am Bedienteil-Bus und ersetzt/ergänzt das Wandpanel). Wer die
-Modbus-Klemmen erreichen kann und volle Sensorik/Steuerung will, ist mit einer Modbus-Lösung
-womöglich besser bedient.
+The VR-700 DCV can also speak **Modbus RTU** (RS-485) on a separate connector –
+which most other integrations build on (e.g.
+[BeamCtrl/Airiana](https://github.com/BeamCtrl/Airiana), various Home Assistant
+projects). That is considerably more robust than replaying panel frames, **but
+requires the Modbus terminals**, not the wall-panel terminals. This plugin
+deliberately takes the panel-protocol route (it sits on the panel bus and
+replaces/supplements the wall panel). If you can reach the Modbus terminals and
+want full sensors/control, a Modbus solution may serve you better.
 
-## Bekannte Einschränkungen
+## Known limitations
 
-- Kein echtes, dynamisches Schreiben beliebiger Feldkombinationen (siehe oben) – nur die vier
-  Lüfterstufen und sechs Temperaturstufen als exakt aufgezeichnete Zielwerte (mitgeliefert
-  oder [gelernt](#lernmodus-empfohlen)).
-- Setzt man Lüftergeschwindigkeit und Temperatur kurz hintereinander, kann kurzzeitig der
-  jeweils andere Wert auf seinen zuletzt aufgezeichneten Stand zurückspringen, bis der
-  automatische Verify/Retry-Mechanismus ihn korrigiert (ein paar Sekunden Verzögerung, kein
-  Datenverlust). Der Lernmodus mindert das, weil beide Werte dann aus derselben, real
-  aufgezeichneten Panel-Realität stammen.
-- Der EW11 hat in Tests auf aktivierte TCP-Keepalive-Probes mit periodischen `ECONNRESET`
-  reagiert – das Plugin nutzt deshalb bewusst **kein** TCP-Keepalive, sondern einen eigenen,
-  datenbasierten Watchdog (Neuverbindung, wenn 15 Sekunden lang keine Broadcasts ankommen,
-  mit exponentiell wachsender Pause bei wiederholten erfolglosen Reconnects, gedeckelt auf
-  60s - verhindert, dass wiederholtes Auf-/Abbauen der Verbindung selbst zur Buslast wird).
-- **Beobachtet, noch nicht abschließend geklärt:** Wenn das Lüftungsgerät wegen Übertemperatur
-  einen Sensorfehler meldet (an sich normales Verhalten), verschwindet die Anzeige auf dem
-  physischen Wandpanel, sobald der EW11 am Bus angeschlossen ist - und der EW11 selbst scheint
-  dann auch keine Daten mehr zu empfangen. Trennt man den EW11 wieder ab, funktioniert das
-  Panel normal. Das deutet eher auf eine elektrische Wechselwirkung (Busbelastung/Terminierung
-  des EW11, evtl. verschärft durch reduzierte Störfestigkeit der Regelung im Fehlerzustand) als
-  auf einen reinen Software-Bug - der `debug`-Modus (siehe oben) hilft, das im Detail zu
-  beobachten (kommen überhaupt Bytes an, wenn ja wie viele gültige Frames).
-- Ungetestet: Verhalten über sehr lange Laufzeiten (Wochen/Monate) sowie Verhalten, wenn ein
-  zweites physisches Bedienteil gleichzeitig aktiv bedient wird.
+- No true dynamic writing of arbitrary field combinations (see above) – only the
+  four fan levels and six temperature levels as exactly recorded target values
+  (bundled or [learned](#learn-mode-recommended)).
+- If you set fan speed and temperature in quick succession, the respective other
+  value can briefly jump back to its last recorded state until the verify/resend
+  reconciles it (a few seconds' delay, no data loss). Learn mode reduces this,
+  because both values then come from the same real recorded panel reality.
+- The EW11 responded to enabled TCP keepalive probes with periodic `ECONNRESET`
+  in testing – the plugin therefore deliberately uses **no** TCP keepalive, but
+  its own data-based watchdog (reconnect when no broadcasts arrive for 15
+  seconds, with an exponentially growing pause on repeated failed reconnects,
+  capped at 60 s - prevents repeated connecting/disconnecting from becoming bus
+  load itself).
+- **Observed, not fully explained:** when the ventilation unit reports a sensor
+  fault due to overtemperature (normal behavior in itself), the display on the
+  physical wall panel disappears once the EW11 is connected to the bus - and the
+  EW11 itself then also seems to receive no more data. Disconnecting the EW11
+  again, the panel works normally. This points more to an electrical interaction
+  (bus loading/termination of the EW11, possibly aggravated by reduced noise
+  immunity of the controller in the fault state) than to a pure software bug -
+  `debug` mode (see above) helps observe this in detail (do any bytes arrive, and
+  if so how many valid frames).
+- Untested: behavior over very long runtimes (weeks/months), and behavior when a
+  second physical wall controller is actively operated at the same time.
 
-## Mitwirken
+## Contributing
 
-Issues und Pull Requests willkommen – besonders zur Frage, welche der bislang unbekannten
-Frame-Felder tatsächlich sicherheitsrelevant sind (siehe Sicherheitshinweis oben). Bitte bei
-PRs, die neue Kommandoframes einführen oder bestehende verändern, kurz beschreiben, wie/wo
-getestet wurde.
+Issues and pull requests welcome – especially on the question of which of the
+still-unknown frame fields are actually safety-relevant (see the safety note
+above). For PRs that introduce new command frames or change existing ones, please
+briefly describe how/where they were tested.
 
-## Lizenz
+## License
 
-MIT, siehe [LICENSE](./LICENSE).
+MIT, see [LICENSE](./LICENSE).
