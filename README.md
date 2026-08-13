@@ -150,12 +150,20 @@ Störungsbilder:
 
 ## Lernmodus (empfohlen)
 
-**Das Problem:** Die mitgelieferten Kommandoframes wurden auf *einer bestimmten* VR-700
-aufgezeichnet. So ein Frame ist ein kompletter 280-Byte-Schnappschuss, von dem nur wenige
-Bytes entschlüsselt sind. Weicht deine Anlage in einem der vielen unbekannten Felder ab, kann
-das Setzen **manchmal nicht greifen** – genau das Symptom „Fan/Temperatur wird nicht immer
-korrekt übernommen". Die zuverlässige Lösung ist, die Frames **direkt von deiner eigenen
-Anlage** zu lernen.
+**Zur Einordnung:** Die mitgelieferten Kommandoframes sind **echte, per Reverse Engineering
+aufgezeichnete** Frames – das Nächste an der echten Panel-Kommunikation, was es gibt, und die
+vertrauenswürdige Standard-Basis dieses Plugins. Sie bleiben der Default; der Lernmodus ist
+**optional** und ändert daran nichts, solange du ihn nicht ausführst.
+
+Trotzdem ist so ein Frame ein kompletter 280-Byte-Schnappschuss, von dem nur wenige Bytes
+entschlüsselt sind. Dadurch kann das Setzen in Einzelfällen nicht sofort greifen – etwa weil
+ein Frame immer *beide* Werte (Lüfter und Temperatur) mitführt und sich zwei kurz
+aufeinanderfolgende Befehle gegenseitig überschreiben, oder weil eingebettete Zähler-/
+Zeitstempel-Bytes im Schnappschuss veraltet sind. Der Lernmodus hilft hier, indem er **frische
+Frames direkt von deiner laufenden Anlage** aufzeichnet – nützlich, um die Vorlagen
+aufzufrischen, fehlende Stufen zu ergänzen oder ein anderes/neues Gerät einzumessen. Er ist
+kein „Ersatz für falsche" Frames, sondern eine Möglichkeit, den Bestand aus derselben realen
+Quelle aktuell zu halten.
 
 **So funktioniert's:** Mit `"learn": true` geht das Plugin in einen **rein passiven**
 Mitschnitt-Modus. Es **sendet dabei nichts** an die Anlage (für den Bus also völlig
