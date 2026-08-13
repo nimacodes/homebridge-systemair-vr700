@@ -90,7 +90,26 @@ jobs:
             echo "cleaned $npmrc:"; cat "$npmrc"
           fi
 
+      # Diagnostic: is the GitHub OIDC token endpoint available to this job?
+      # If MISSING, id-token:write isn't taking effect (workflow problem). If
+      # PRESENT but publish still fails with ENEEDAUTH, the trusted-publisher
+      # config on npm doesn't match this repo/workflow (npm-side problem).
+      - name: Diagnose OIDC availability
+        run: |
+          echo "npm $(npm -v), node $(node -v)"
+          echo "registry: $(npm config get registry)"
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo "OIDC token endpoint: PRESENT (id-token:write is in effect)"
+          else
+            echo "OIDC token endpoint: MISSING (id-token:write NOT in effect)"
+          fi
+
+      # Neutralise the placeholder NODE_AUTH_TOKEN that setup-node exports; a set
+      # value (even the dummy) can stop npm from falling through to OIDC.
       - run: npm ci
-      # No token in the environment: auth happens via OIDC trusted publishing,
-      # and provenance is attached automatically.
+        env:
+          NODE_AUTH_TOKEN: ""
+      # Auth happens via OIDC trusted publishing; provenance is automatic.
       - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ""
