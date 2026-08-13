@@ -1,16 +1,33 @@
 # Publishes the package to the public npm registry (npmjs.com) whenever a
-# GitHub Release is published. Steps: install -> test -> verify the release tag
-# matches the version in package.json -> npm publish.
+# GitHub Release is published — using npm Trusted Publishing (OIDC).
 #
-# One-time setup required in the repo:
-#   Settings -> Secrets and variables -> Actions -> New repository secret
-#     Name:  NPM_TOKEN
-#     Value: an npm "Automation" access token (npmjs.com -> Access Tokens)
+# No npm token is involved: GitHub mints a short-lived OIDC identity for this
+# workflow run, and npm trusts it. Nothing to rotate, nothing to expire, and
+# npm attaches build provenance automatically.
 #
-# Release flow:
-#   1. Bump "version" in package.json (and commit/merge to main).
-#   2. Create a GitHub Release whose tag is that version, e.g. v0.5.0 or 0.5.0.
-#   3. This workflow runs and publishes that version to npm.
+# ------------------------------------------------------------------------------
+# ONE-TIME SETUP (required before this works):
+#
+# 1. Bootstrap: the package must exist on npm before a trusted publisher can be
+#    configured. Publish the current version ONCE from your machine:
+#        npm login
+#        npm publish
+#    (With account 2FA off this needs no OTP. This claims the name and puts
+#    0.5.0 on npm.)
+#
+# 2. On npmjs.com, open the package -> Settings -> "Trusted Publisher" and add:
+#        Publisher:            GitHub Actions
+#        Organization / user:  nimacodes
+#        Repository:           homebridge-systemair-vr700
+#        Workflow filename:    npm-publish.yml
+#        Environment:          (leave empty)
+#
+# 3. (Cleanup) Delete the now-unused NPM_TOKEN repo secret and revoke the token
+#    on npm. This workflow no longer uses it.
+#
+# From then on: bump "version" in package.json, publish a GitHub Release whose
+# tag matches (e.g. v0.6.0), and this workflow publishes it — no token needed.
+# ------------------------------------------------------------------------------
 name: Publish to npm
 
 on:
@@ -27,18 +44,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - run: npm ci
       - run: npm test
 
   publish-npm:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required: lets GitHub mint the OIDC token npm trusts
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org/
 
       # Guard: the release tag must match package.json's version, so we never
@@ -54,7 +74,8 @@ jobs:
             exit 1
           fi
 
+      # Trusted publishing (OIDC) requires npm CLI >= 11.5.1; ensure it.
+      - run: npm install -g npm@latest
       - run: npm ci
+      # No NODE_AUTH_TOKEN: auth happens via OIDC. Provenance is automatic.
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
