@@ -1,6 +1,6 @@
 {
   "name": "homebridge-systemair-vr700",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Homebridge plugin for Systemair/Villavent VR-700 (CD panel protocol) over an RS485<->WiFi adapter (e.g. Elfin EW11)",
   "main": "index.js",
   "scripts": {
