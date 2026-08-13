@@ -2,40 +2,40 @@
   "pluginAlias": "SystemairVR700",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "Steuert eine Systemair/Villavent VR-700-Wohnraumlüftung über einen RS485↔WLAN-Adapter (z. B. Elfin EW11), der an den Bedienteil-Klemmen angeschlossen ist.",
+  "headerDisplay": "Controls a Systemair/Villavent VR-700 residential ventilation unit over an RS485<->WiFi adapter (e.g. Elfin EW11) wired to the wall-panel terminals.",
   "schema": {
     "type": "object",
     "properties": {
       "name": {
         "title": "Name",
         "type": "string",
-        "default": "Lüftung",
-        "description": "Basisname; erzeugt \"<Name> Geschwindigkeit\" und \"<Name> Temperatur\"."
+        "default": "Ventilation",
+        "description": "Base name; creates \"<Name> Speed\" and \"<Name> Temperature\"."
       },
       "ip": {
-        "title": "IP-Adresse des WLAN-Moduls",
+        "title": "IP address of the WiFi module",
         "type": "string",
         "required": true,
         "format": "ipv4",
-        "description": "IP-Adresse des EW11 (RS485↔WLAN-Adapter)."
+        "description": "IP address of the EW11 (RS485<->WiFi adapter)."
       },
       "port": {
-        "title": "TCP-Port",
+        "title": "TCP port",
         "type": "integer",
         "default": 502,
-        "description": "Meist 502. Muss im EW11 unter Communication Settings als TCP-Server-Port eingestellt sein."
+        "description": "Usually 502. Must match the TCP server port configured on the EW11 under Communication Settings."
       },
       "debug": {
-        "title": "Debug-Modus",
+        "title": "Debug mode",
         "type": "boolean",
         "default": false,
-        "description": "Loggt JEDES empfangene und gesendete Byte sowie Statistiken (gültige Frames vs. verworfene Bytes) ins Homebridge-Log. Nur zum gezielten Debuggen einschalten, erzeugt sehr viele Log-Zeilen - danach wieder deaktivieren."
+        "description": "Logs EVERY received and sent byte plus statistics (valid frames vs. discarded bytes) to the Homebridge log. Enable only for targeted debugging, it produces a lot of log lines - disable again afterwards."
       },
       "learn": {
-        "title": "Lernmodus",
+        "title": "Learn mode",
         "type": "boolean",
         "default": false,
-        "description": "Zeichnet die korrekten Steuer-Frames DEINER Anlage auf, statt die mitgelieferten Standard-Frames zu verwenden. Wenn aktiv, sendet das Plugin NICHTS an die Anlage, sondern hört nur mit: Schalte am originalen (parallel angeschlossenen) Wandpanel nacheinander alle Lüfter- und Temperaturstufen durch, das Plugin erfasst sie automatisch (Fortschritt im Log). Danach wieder auf false setzen. Die gelernten Frames werden dauerhaft gespeichert und im Normalbetrieb bevorzugt genutzt."
+        "description": "Records the correct control frames of YOUR unit instead of using the bundled default frames. When active, the plugin SENDS NOTHING to the unit and only listens: step through all fan and temperature levels on the original (parallel-connected) wall panel and the plugin captures them automatically (progress shown in the log). Set back to false afterwards. Learned frames are stored persistently and preferred in normal operation."
       }
     },
     "required": ["ip"]

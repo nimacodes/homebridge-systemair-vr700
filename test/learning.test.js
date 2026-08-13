@@ -23,7 +23,7 @@ function cmdFrame(fan, temp) {
   return f;
 }
 
-test('FrameStore speichert und laedt gelernte Frames', () => {
+test('FrameStore saves and loads learned frames', () => {
   const dir = tmpDir();
   const store = new FrameStore({ dir, host: '10.0.0.5', log: silentLog });
   assert.strictEqual(store.count(), 0);
@@ -34,12 +34,12 @@ test('FrameStore speichert und laedt gelernte Frames', () => {
   assert.strictEqual(store.hasFan(2), true);
   assert.strictEqual(store.hasFan(1), false);
 
-  // Neue Instanz mit demselben Pfad/Host laedt das Gespeicherte.
+  // A new instance with the same path/host loads what was stored.
   const reloaded = new FrameStore({ dir, host: '10.0.0.5', log: silentLog });
   assert.ok(reloaded.getFan(2).equals(frame));
 });
 
-test('FrameStore trennt verschiedene Hosts', () => {
+test('FrameStore separates different hosts', () => {
   const dir = tmpDir();
   const a = new FrameStore({ dir, host: '10.0.0.5', log: silentLog });
   a.setTemp(1, cmdFrame(0, 1), { fan: 0, temp: 1 });
@@ -47,16 +47,16 @@ test('FrameStore trennt verschiedene Hosts', () => {
   assert.strictEqual(b.hasTemp(1), false);
 });
 
-test('FrameStore weist gespeicherte Frames mit kaputter CRC ab', () => {
+test('FrameStore rejects stored frames with a broken CRC', () => {
   const dir = tmpDir();
   const store = new FrameStore({ dir, host: 'x', log: silentLog });
   const broken = cmdFrame(1, 1);
-  broken[proto.FRAME_LEN - 1] ^= 0xff; // CRC zerstoeren
+  broken[proto.FRAME_LEN - 1] ^= 0xff; // destroy CRC
   store.setFan(1, broken, {});
-  assert.strictEqual(store.getFan(1), null); // wird nicht als gueltig herausgegeben
+  assert.strictEqual(store.getFan(1), null); // not handed out as valid
 });
 
-test('FrameStore.isComplete erst bei allen 4 Luefter- und 6 Temperaturstufen', () => {
+test('FrameStore.isComplete only with all 4 fan and 6 temperature levels', () => {
   const dir = tmpDir();
   const store = new FrameStore({ dir, host: 'x', log: silentLog });
   for (const l of [0, 1, 2, 3]) store.setFan(l, cmdFrame(l, 0), {});
